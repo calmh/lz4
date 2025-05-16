@@ -140,25 +140,26 @@ func TestIssue41(t *testing.T) {
 }
 
 func TestIssue42(t *testing.T) {
-	r, w := io.Pipe()
-	zw := lz4.NewWriter(w)
-	zr := lz4.NewReader(r)
-
 	data, err := hex.DecodeString(`0801120b6d6c3379752d76396b61611a544d6f7274616c204b6f6d62617420416e6e6968696c6174696f6e202831393937292f4d6f7274616c204b6f6d62617420416e6e6968696c6174696f6e2028313939372920426c757261792d31303830702e6d6b7620808080be0528808080023220189ddd811a175cd02ed18704396298ee3e6b50bfc9d0785be21ac302c185edfb48df02`)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	go func() {
-		_, _ = zw.Write(data)
-		_ = zw.Close()
-		_ = w.Close()
-	}()
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(zr)
-	if got, want := buf.Bytes(), data; !bytes.Equal(got, want) {
-		t.Logf(hex.Dump(want))
-		t.Logf(hex.Dump(got))
+	buf := make([]byte, len(data))
+	n, err := lz4.CompressBlock(data, buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst := make([]byte, len(data))
+	n, err = lz4.UncompressBlock(buf[:n], dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(dst[:n], data) {
+		t.Logf(hex.Dump(data))
+		t.Logf(hex.Dump(dst[:n]))
 		t.Fatal("uncompressed data does not match original")
 	}
 }
