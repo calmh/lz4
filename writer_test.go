@@ -3,6 +3,8 @@ package lz4_test
 import (
 	"archive/tar"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -135,6 +137,34 @@ func TestIssue41(t *testing.T) {
 	var buf bytes.Buffer
 	_, _ = buf.ReadFrom(zr)
 	if got, want := buf.String(), data; got != want {
+		t.Fatal("uncompressed data does not match original")
+	}
+}
+
+func TestIssue42(t *testing.T) {
+	data, err := hex.DecodeString(`0801120b6d6c3379752d76396b61611a544d6f7274616c204b6f6d62617420416e6e6968696c6174696f6e202831393937292f4d6f7274616c204b6f6d62617420416e6e6968696c6174696f6e2028313939372920426c757261792d31303830702e6d6b7620808080be0528808080023220189ddd811a175cd02ed18704396298ee3e6b50bfc9d0785be21ac302c185edfb48df02`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, len(data))
+	n, err := lz4.CompressBlock(data, buf, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compHash := sha256.Sum256(buf[:n])
+	t.Log(hex.EncodeToString(compHash[:]))
+
+	dst := make([]byte, len(data))
+	n, err = lz4.UncompressBlock(buf[:n], dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(dst[:n], data) {
+		t.Logf(hex.Dump(data))
+		t.Logf(hex.Dump(dst[:n]))
 		t.Fatal("uncompressed data does not match original")
 	}
 }
