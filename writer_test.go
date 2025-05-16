@@ -3,6 +3,7 @@ package lz4_test
 import (
 	"archive/tar"
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -150,6 +151,9 @@ func TestIssue42(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	compHash := sha256.Sum256(buf[:n])
+	t.Log(hex.EncodeToString(compHash[:]))
 
 	dst := make([]byte, len(data))
 	n, err = lz4.UncompressBlock(buf[:n], dst)
